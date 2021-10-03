@@ -12,7 +12,7 @@ Custom PHP session handler for [Nette Framework](http://nette.org/) that uses My
 Preferred way to install pematon/mysql-session-handler is by using [Composer](http://getcomposer.org/):
 
 ```sh
-$ composer require pematon/mysql-session-handler:~1.0
+$ composer require wincorex/mysql-session-handler:~dev-master
 ```
 
 ## Setup
