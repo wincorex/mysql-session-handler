@@ -10,6 +10,8 @@ use Nette;
  */
 class MysqlSessionHandler implements \SessionHandlerInterface
 {
+	private $jsonFormat = false;
+
 	private $tableName;
 
 	/** @var Nette\Database\Context */
@@ -27,15 +29,22 @@ class MysqlSessionHandler implements \SessionHandlerInterface
 		$this->tableName = $tableName;
 	}
 
+	public function setJsonFormat($jsonFormat)
+	{
+		$this->jsonFormat = $jsonFormat;
+	}
+
 	protected function hash($id)
 	{
-		return '#' . $id;
+		return $id ? $id : null;
 	}
 
 	private function lock() {
 		if ($this->lockId === null) {
 			$this->lockId = $this->hash(session_id());
-			while (!$this->context->query("SELECT GET_LOCK(?, 1) as `lock`", $this->lockId)->fetch()->lock);
+			if ($this->lockId) {
+				while (!$this->context->query("SELECT GET_LOCK(?, 1) as `lock`", $this->lockId)->fetch()->lock);
+			}
 		}
 	}
 
@@ -83,7 +92,7 @@ class MysqlSessionHandler implements \SessionHandlerInterface
 
 		if ($row) {
 			$_SESSION = json_decode($row->data, TRUE);
-			return session_encode();
+			return json_last_error() === JSON_ERROR_NONE ? session_encode() : $row->data;
 		}
 
 		return '';
@@ -96,8 +105,12 @@ class MysqlSessionHandler implements \SessionHandlerInterface
 		$hashedSessionId = $this->hash($sessionId);
 		$time = time();
 		
-		session_decode($sessionData);
-		$sessionJson = json_encode($_SESSION, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+		if ($this->jsonFormat) {
+			session_decode($sessionData);
+			$sessionJson = json_encode($_SESSION, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+		} else {
+			$sessionJson = $sessionData;
+		}
 
 		if ($row = $this->context->table($this->tableName)->get($hashedSessionId)) {
 			if ($row->data !== $sessionJson) {

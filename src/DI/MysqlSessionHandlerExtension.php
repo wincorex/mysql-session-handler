@@ -8,6 +8,7 @@ class MysqlSessionHandlerExtension extends Nette\DI\CompilerExtension
 {
 	private $defaults = [
 		'tableName' => 'sessions',
+		'jsonFormat' => false,
 	];
 
 	public function loadConfiguration()
@@ -20,7 +21,9 @@ class MysqlSessionHandlerExtension extends Nette\DI\CompilerExtension
 
 		$definition = $builder->addDefinition($this->prefix('sessionHandler'))
 			->setClass('Wincorex\Session\MysqlSessionHandler')
-			->addSetup('setTableName', [$config['tableName']]);
+			->addSetup('setTableName', [$config['tableName']])
+			->addSetup('setJsonFormat', [$config['jsonFormat']])
+		;
 
 
 		$sessionDefinition = $builder->getDefinition('session');
