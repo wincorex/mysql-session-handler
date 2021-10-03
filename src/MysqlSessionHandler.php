@@ -97,7 +97,7 @@ class MysqlSessionHandler implements \SessionHandlerInterface
 		$time = time();
 		
 		session_decode($sessionData);
-		$sessionJson = json_encode($_SESSION, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+		$sessionJson = json_encode($_SESSION, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
 		if ($row = $this->context->table($this->tableName)->get($hashedSessionId)) {
 			if ($row->data !== $sessionJson) {
