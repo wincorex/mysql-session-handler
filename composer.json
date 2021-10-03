@@ -1,11 +1,16 @@
 {
-	"name": "pematon/mysql-session-handler",
+	"name": "wincorex/mysql-session-handler",
 	"description": "MySQL session handler for Nette Framework",
 	"license": "MIT",
 	"authors": [
 		{
 			"name": "Pematon, s.r.o.",
 			"homepage": "http://www.pematon.com"
+		}
+		,
+		{
+			"name": "Petr Vavrik",
+			"homepage": "https://petr.vavrik.com"
 		}
 	],
 	"require": {
