@@ -4,13 +4,13 @@
 	"license": "MIT",
 	"authors": [
 		{
-			"name": "Pematon, s.r.o.",
-			"homepage": "http://www.pematon.com"
+			"name": "Petr Vavrik",
+			"homepage": "https://petr.vavrik.com"
 		}
 		,
 		{
-			"name": "Petr Vavrik",
-			"homepage": "https://petr.vavrik.com"
+			"name": "Pematon, s.r.o.",
+			"homepage": "http://www.pematon.com"
 		}
 	],
 	"require": {

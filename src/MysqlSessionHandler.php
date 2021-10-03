@@ -1,6 +1,6 @@
 <?php
 
-namespace Pematon\Session;
+namespace Wincorex\Session;
 
 use Nette;
 
@@ -29,7 +29,7 @@ class MysqlSessionHandler implements \SessionHandlerInterface
 
 	protected function hash($id)
 	{
-		return $id;
+		return '#' . $id;
 	}
 
 	private function lock() {
@@ -82,7 +82,8 @@ class MysqlSessionHandler implements \SessionHandlerInterface
 		$row = $this->context->table($this->tableName)->get($hashedSessionId);
 
 		if ($row) {
-			return $row->data;
+			$_SESSION = json_decode($row->data, TRUE);
+			return session_encode();
 		}
 
 		return '';
@@ -94,12 +95,15 @@ class MysqlSessionHandler implements \SessionHandlerInterface
 
 		$hashedSessionId = $this->hash($sessionId);
 		$time = time();
+		
+		session_decode($sessionData);
+		$sessionJson = json_encode($_SESSION, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
 
 		if ($row = $this->context->table($this->tableName)->get($hashedSessionId)) {
-			if ($row->data !== $sessionData) {
+			if ($row->data !== $sessionJson) {
 				$row->update(array(
 					'timestamp' => $time,
-					'data' => $sessionData,
+					'data' => $sessionJson,
 				));
 			} else if ($time - $row->timestamp > 300) {
 				// Optimization: When data has not been changed, only update
@@ -112,7 +116,7 @@ class MysqlSessionHandler implements \SessionHandlerInterface
 			$this->context->table($this->tableName)->insert(array(
 				'id' => $hashedSessionId,
 				'timestamp' => $time,
-				'data' => $sessionData,
+				'data' => $sessionJson,
 			));
 		}
 

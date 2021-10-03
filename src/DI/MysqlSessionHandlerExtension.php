@@ -1,6 +1,6 @@
 <?php
 
-namespace Pematon\Session\DI;
+namespace Wincorex\Session\DI;
 
 use Nette;
 
@@ -19,7 +19,7 @@ class MysqlSessionHandlerExtension extends Nette\DI\CompilerExtension
 		$builder = $this->getContainerBuilder();
 
 		$definition = $builder->addDefinition($this->prefix('sessionHandler'))
-			->setClass('Pematon\Session\MysqlSessionHandler')
+			->setClass('Wincorex\Session\MysqlSessionHandler')
 			->addSetup('setTableName', [$config['tableName']]);
 
 

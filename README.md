@@ -9,7 +9,7 @@ Custom PHP session handler for [Nette Framework](http://nette.org/) that uses My
 
 ## Installation
 
-Preferred way to install pematon/mysql-session-handler is by using [Composer](http://getcomposer.org/):
+Preferred way to install wincorex/mysql-session-handler is by using [Composer](http://getcomposer.org/):
 
 ```sh
 $ composer require wincorex/mysql-session-handler:~dev-master
@@ -25,7 +25,7 @@ After installation:
 
 ```neon
 	extensions:
-		sessionHandler: Pematon\Session\DI\MysqlSessionHandlerExtension
+		sessionHandler: Wincorex\Session\DI\MysqlSessionHandlerExtension
 ```
 
 ## Features
