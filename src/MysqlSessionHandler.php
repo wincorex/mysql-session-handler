@@ -29,12 +29,12 @@ class MysqlSessionHandler implements \SessionHandlerInterface
 
 	protected function hash($id)
 	{
-		return md5($id);
+		return $id;
 	}
 
 	private function lock() {
 		if ($this->lockId === null) {
-			$this->lockId = md5(session_id());
+			$this->lockId = $this->hash(session_id());
 			while (!$this->context->query("SELECT GET_LOCK(?, 1) as `lock`", $this->lockId)->fetch()->lock);
 		}
 	}
