@@ -4,11 +4,14 @@ namespace Wincorex\Session\DI;
 
 use Nette;
 
+
 class MysqlSessionHandlerExtension extends Nette\DI\CompilerExtension
 {
 	private $defaults = [
 		'tableName' => 'sessions',
 		'jsonFormat' => false,
+		'lockTimeout' => 5, 
+		'unchangedUpdateDelay' => 300,
 	];
 
 	public function loadConfiguration()
@@ -23,6 +26,8 @@ class MysqlSessionHandlerExtension extends Nette\DI\CompilerExtension
 			->setClass('Wincorex\Session\MysqlSessionHandler')
 			->addSetup('setTableName', [$config['tableName']])
 			->addSetup('setJsonFormat', [$config['jsonFormat']])
+			->addSetup('setLockTimeout', [$config['lockTimeout']]) 
+			->addSetup('setUnchangedUpdateDelay', [$config['unchangedUpdateDelay']]);
 		;
 
 
