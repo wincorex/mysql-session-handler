@@ -4,8 +4,8 @@ Custom PHP session handler for [Nette Framework](http://nette.org/) that uses My
 
 ## Requirements
 
-- [nette/database](https://github.com/nette/database) 2.2+
-- PHP 5.3+
+- [nette/database](https://github.com/nette/database) 2.4+
+- PHP 7.2+
 
 ## Installation
 
@@ -26,7 +26,15 @@ After installation:
 ```neon
 	extensions:
 		sessionHandler: Wincorex\Session\DI\MysqlSessionHandlerExtension
+
+	sessionHandler:
+		tableName: 'web_session'
+		jsonDebug: true
 ```
+
+## Original source code
+- Pematon [GitHub](https://github.com/pematon/mysql-session-handler)
+- MD5 hash is not applicated for easy debugging
 
 ## Features
 

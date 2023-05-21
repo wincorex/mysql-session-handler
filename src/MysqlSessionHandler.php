@@ -15,27 +15,27 @@ class MysqlSessionHandler implements SessionHandlerInterface
 	use Nette\SmartObject;
 
 	/** @var Nette\Database\Context */
-	private $context;
+	private $database;
 
 	/** @var string */
-	private $tableName;
+	private $tableName = 'web_session';
 
-	/** @var boolean */
-	private $jsonFormat = false;
+	/** @var bool */
+	private $jsonDebug = FALSE;
 
 	/** @var string */
-	private $lockId;
+	private $lockId = NULL;
 
-	/** @var integer */
+	/** @var int */
 	private $lockTimeout = 5;
 
-	/** @var integer */
+	/** @var int */
 	private $unchangedUpdateDelay = 300;
 
 
-	public function __construct(Nette\Database\Context $context)
+	public function __construct(Nette\Database\Context $database)
 	{
-		$this->context = $context;
+		$this->database = $database;
 	}
 
 
@@ -45,9 +45,9 @@ class MysqlSessionHandler implements SessionHandlerInterface
 	}
 
 
-	public function setJsonFormat($jsonFormat)
+	public function setJsonDebug($jsonDebug)
 	{
-		$this->jsonFormat = $jsonFormat;
+		$this->jsonDebug = $jsonDebug;
 	}
 
 
@@ -65,36 +65,43 @@ class MysqlSessionHandler implements SessionHandlerInterface
 
 	protected function hash($id)
 	{
-		return $id ? $id : null;
+		return $id ? $id : NULL;
 	}
 
 
-	private function lock() {
-		if ($this->lockId === null) {
+	private function lock()
+	{
+		if ($this->lockId === NULL) {
 			$this->lockId = $this->hash(session_id());
-			if ($this->lockId) {
-				while (!$this->context->query("SELECT GET_LOCK(?, ?) as `lock`", $this->lockId, $this->lockTimeout));
-			}
+
+			// if ($this->lockId) {
+				while (!$this->database->query("SELECT IS_FREE_LOCK(?name) AS `free`;", $this->lockId)->fetch()->free);
+				$this->database->query("SELECT GET_LOCK(?, ?) AS `lock`;", $this->lockId, $this->lockTimeout);
+
+				/** @noinspection PhpStatementHasEmptyBodyInspection */
+   				/// while (!$this->database->query("SELECT GET_LOCK(?, ?) AS `lock`;", $this->lockId, $this->lockTimeout)->fetch()->lock);
+			// }
 		}
 	}
 
 
-	private function unlock() {
-		if ($this->lockId === null) {
+	private function unlock()
+	{
+		if ($this->lockId === NULL) {
 			return;
 		}
 
-		$this->context->query("SELECT RELEASE_LOCK(?)", $this->lockId);
-		$this->lockId = null;
+		$this->database->query("SELECT RELEASE_LOCK(?);", $this->lockId);
+		$this->lockId = NULL;
 	}
 
 
 	/**
-	 * @param string $savePath
+	 * @param string $path
 	 * @param string $name
-	 * @return boolean
+	 * @return bool
 	 */
-	public function open($savePath, $name)
+	public function open($path, $name)
 	{
 		$this->lock();
 		return TRUE;
@@ -109,80 +116,71 @@ class MysqlSessionHandler implements SessionHandlerInterface
 
 
 	/**
-	 * @param string $sessionId
-	 * @return boolean
+	 * @param string $id
+	 * @return bool
 	 */
-	public function destroy($sessionId)
+	public function destroy($id)
 	{
-		$hashedSessionId = $this->hash($sessionId);
-		$this->context->table($this->tableName)->where('id', $hashedSessionId)->delete();
+		$idHash = $this->hash($id);
+		$this->database->table($this->tableName)->where('id', $idHash)->delete();
 		$this->unlock();
 		return TRUE;
 	}
 
 
 	/**
-	 * @param string $sessionId
+	 * @param string $id
 	 * @return string
 	 */
-	public function read($sessionId)
+	public function read($id)
 	{
 		$this->lock();
-		$hashedSessionId = $this->hash($sessionId);
-		$row = $this->context->table($this->tableName)->get($hashedSessionId);
-
-		if ($row) {
-			if ($this->jsonFormat) {
-				$sessionData = json_decode($row->data, TRUE);
-				return $this->serializeSession(
-					json_last_error() === JSON_ERROR_NONE ? $sessionData : array()
-				);
-			} else {
-				return  $row->data;
-			}
-		}
-
-		return '';
+		$idHash = $this->hash($id);
+		$row = $this->database->table($this->tableName)->get($idHash);
+		return $row ? strval($row->data) : '';
 	}
 
 
 	/**
-	 * @param string $sessionId
-	 * @param string $sessionData
-	 * @return boolean
+	 * @param string $id
+	 * @param string $data
+	 * @return bool
 	 */
-	public function write($sessionId, $sessionData)
+	public function write($id, $data)
 	{
 		$this->lock();
-		$hashedSessionId = $this->hash($sessionId);
-		$time = time();
-		
-		if ($this->jsonFormat) {
-			$sessionData = json_encode(
-				$this->unserializeSession($sessionData),
-				JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
-			);
-		}
 
-		if ($row = $this->context->table($this->tableName)->get($hashedSessionId)) {
-			if ($row->data !== $sessionData) {
-				$row->update(array(
+		$idHash = $this->hash($id);
+		$time = time();
+
+		$dump = $this->jsonDebug
+			? json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+			: NULL
+		;
+
+		if ($row = $this->database->table($this->tableName)->get($idHash)) {
+			if ($row->data !== $data) {
+				$row->update([
 					'timestamp' => $time,
-					'data' => $sessionData,
-				));
-			} else if ($this->unchangedUpdateDelay === 0 || $time - $row->timestamp > $this->unchangedUpdateDelay) {
+					'data' => $data,
+					'dump' => $dump,
+				]);
+			}
+			elseif (intval($this->unchangedUpdateDelay) === 0 || $time - $row->timestamp > $this->unchangedUpdateDelay) {
 				// Optimization: When data has not been changed, only update
 				// the timestamp after 5 minutes.
-				$row->update(array(
+				$row->update([
 					'timestamp' => $time,
-				));
+				]);
 			}
-		} else {
-			$this->context->table($this->tableName)->insert(array(
-				'id' => $hashedSessionId,
+		}
+		else {
+			$this->database->table($this->tableName)->insert([
+				'id' => $idHash,
 				'timestamp' => $time,
-				'data' => $sessionData,
-			));
+				'data' => $data,
+				'dump' => $dump,
+			]);
 		}
 
 		return TRUE;
@@ -190,12 +188,12 @@ class MysqlSessionHandler implements SessionHandlerInterface
 
 
 	/**
-	 * @param integer $maxLifeTime
-	 * @return boolean
+	 * @param int $max_lifetime
+	 * @return bool
 	 */
-	public function gc($maxLifeTime)
+	public function gc($max_lifetime)
 	{
-		$maxTimestamp = time() - $maxLifeTime;
+		$maxTimestamp = time() - $max_lifetime;
 
 		// Try to avoid a conflict when running garbage collection simultaneously on two
 		// MySQL servers at a very busy site in a master-master replication setup by
@@ -205,68 +203,16 @@ class MysqlSessionHandler implements SessionHandlerInterface
 		// In a typical master-master replication setup, the server IDs are 1 and 2.
 		// There is no subtraction on server 1 and one day (or one tenth of $maxLifeTime)
 		// subtraction on server 2.
-		$serverId = $this->context->query("SELECT @@server_id as `server_id`")->fetch()->server_id;
+		$serverId = $this->database->query("SELECT @@server_id AS `server_id`;")->fetch()->server_id;
 		if ($serverId > 1 && $serverId < 10) {
-			$maxTimestamp -= ($serverId - 1) * max(86400, $maxLifeTime / 10);
+			$maxTimestamp -= ($serverId - 1) * max(86400, $max_lifetime / 10);
 		}
 
-		$this->context->table($this->tableName)
-			->where('timestamp < ?', $maxTimestamp)
-			->delete();
+		$this->database->table($this->tableName)
+			->where('timestamp < ?', intval($maxTimestamp))
+			->delete()
+		;
 
 		return TRUE;
-	}
-
-
-	/**
-	 * @see http://php.net/manual/en/function.session-decode.php#108037
-	 * @param array $session_data
-	 * @throws Exception
-	 * @return multitype:mixed
-	 */
-	private function unserializeSession($session_data)
-	{
-		$return_data = array();
-		$offset = 0;
-		while ($offset < strlen($session_data)) {
-			if (!strstr(substr($session_data, $offset), '|')) {
-				throw new Exception('invalid data, remaining: ' . substr($session_data, $offset));
-			}
-			$pos = strpos($session_data, '|', $offset);
-			$num = $pos - $offset;
-			$varname = substr($session_data, $offset, $num);
-			$offset += $num + 1;
-			$data = unserialize(substr($session_data, $offset));
-			$return_data[$varname] = $data;
-			$offset += strlen(serialize($data));
-		}
-		return $return_data;
-	}
-
-
-	/**
-	 * @see http://php.net/manual/en/function.session-encode.php#76425
-	 * @param array $array
-	 * @return string
-	 */
-	private function serializeSession(array $array)
-	{
-		$raw = '';
-		$line = 0;
-		$keys = array_keys($array);
-		foreach ($keys as $key) {
-			$value = $array[$key];
-			$line++;
-
-			$raw .= $key . '|';
-
-			if (is_array($value) && isset($value['huge_recursion_blocker_we_hope'])) {
-				$raw .= 'R:' . $value['huge_recursion_blocker_we_hope'] . ';';
-			} else {
-				$raw .= serialize($value);
-			}
-			$array[$key] = Array('huge_recursion_blocker_we_hope' => $line);
-		}
-		return $raw;
 	}
 }
