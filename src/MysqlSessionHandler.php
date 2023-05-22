@@ -74,13 +74,10 @@ class MysqlSessionHandler implements SessionHandlerInterface
 		if ($this->lockId === NULL) {
 			$this->lockId = $this->hash(session_id());
 
-			// if ($this->lockId) {
-				while (!$this->database->query("SELECT IS_FREE_LOCK(?name) AS `free`;", $this->lockId)->fetch()->free);
-				$this->database->query("SELECT GET_LOCK(?, ?) AS `lock`;", $this->lockId, $this->lockTimeout);
-
+			if ($this->lockId) {
 				/** @noinspection PhpStatementHasEmptyBodyInspection */
-   				/// while (!$this->database->query("SELECT GET_LOCK(?, ?) AS `lock`;", $this->lockId, $this->lockTimeout)->fetch()->lock);
-			// }
+   				while (!$this->database->query("SELECT GET_LOCK(?, ?) AS `lock`;", $this->lockId, $this->lockTimeout)->fetch()->lock);
+			}
 		}
 	}
 
@@ -152,11 +149,16 @@ class MysqlSessionHandler implements SessionHandlerInterface
 
 		$idHash = $this->hash($id);
 		$time = time();
+		$dump = NULl;
 
-		$dump = $this->jsonDebug
-			? json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
-			: NULL
-		;
+		if ($this->jsonDebug === TRUE)
+		{
+			preg_match_all('/(_[^|]+)\|(.+?)(?=_[^|]+\||$)/', $data, $matches);
+			$dump = json_encode(
+				array_combine($matches[1], array_map('unserialize', $matches[2])),
+				JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+			);
+		}
 
 		if ($row = $this->database->table($this->tableName)->get($idHash)) {
 			if ($row->data !== $data) {
