@@ -153,11 +153,19 @@ class MysqlSessionHandler implements SessionHandlerInterface
 
 		if ($this->jsonDebug === TRUE)
 		{
-			preg_match_all('/(_[^|]+)\|(.+?)(?=_[^|]+\||$)/', $data, $matches);
-			$dump = json_encode(
-				array_combine($matches[1], array_map('unserialize', $matches[2])),
-				JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
-			);
+			preg_match_all('/(_\w+\|)(.*?)(?=_[^_]+\||$)/s', $data, $matches);
+			if (isset($matches[1], $matches[2])) {
+				$temp = [];
+				foreach ($matches[1] as $index => $key) {
+					$key = trim($key, '|');
+					$value = str_replace("\0", "~", $matches[2][$index]);
+					$temp[$key] = unserialize($value);
+				}
+				$dump = !empty($temp)
+					? json_encode($temp, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+					: NULL
+				;
+			}
 		}
 
 		if ($row = $this->database->table($this->tableName)->get($idHash)) {
