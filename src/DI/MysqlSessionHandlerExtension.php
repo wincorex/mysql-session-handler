@@ -13,6 +13,7 @@ class MysqlSessionHandlerExtension extends Nette\DI\CompilerExtension
 		'jsonDebug' => FALSE,
 		'lockTimeout' => 5,
 		'unchangedUpdateDelay' => 300,
+		'bypass' => FALSE,
 	];
 
 	public function loadConfiguration()
@@ -30,6 +31,10 @@ class MysqlSessionHandlerExtension extends Nette\DI\CompilerExtension
 			->addSetup('setLockTimeout', [$config['lockTimeout']])
 			->addSetup('setUnchangedUpdateDelay', [$config['unchangedUpdateDelay']]);
 		;
+
+		if (isset($config['bypass']) && $config['bypass'] === TRUE) {
+			return;			
+		}
 
 		/** @var Nette\DI\ServiceDefinition $sessionDefinition */
 		$sessionDefinition = $builder->getDefinition('session');
